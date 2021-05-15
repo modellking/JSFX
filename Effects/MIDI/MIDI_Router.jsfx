@@ -1,17 +1,14 @@
 /*******************************************************************************
-version: 1.0
-desc: MIDI_Router (send note range to channel)
-author: IX
-provides: . > ../../MIDI_Router
-about:
-  # MIDI Router
-  MIDI messages on input channel are diverted to the output channel.
-  Can route notes, non-notes or all messages. Notes can be transposed.
-  
-  http://wiki.cockos.com/wiki/index.php/Jesusonic_Effects_Documentation#Router
-********************************************************************************
-* Copyright 2007-2011 Philip S. Considine
-* License: GPL - http://www.gnu.org/licenses/gpl.html
+*  Copyright 2007 - 2011, Philip S. Considine                                  *
+*  This program is free software: you can redistribute it and/or modify        *
+*  it under the terms of the GNU General Public License as published by        *
+*  the Free Software Foundation, either version 3 of the License, or           *
+*  (at your option) any later version.                                         *
+*                                                                              *
+*  This program is distributed in the hope that it will be useful,             *
+*  but WITHOUT ANY WARRANTY; without even the implied warranty of              *
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the                *
+*  GNU General Public License (http://www.gnu.org/licenses/)for more details.  *
 *******************************************************************************/
 
 desc: MIDI Router/Transpose
@@ -19,8 +16,8 @@ desc: MIDI Router/Transpose [IXix]
 //tags: MIDI processing routing
 //author: IXix
 
-slider1:0<0,15,1{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}>Input Channel
-slider2:0<0,15,1{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}>Output Channel
+slider1:0<0,16,1{Any,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}>Input Channel
+slider2:0<0,16,1{Original,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}>Output Channel
 slider3:3<0,3,1{Off, Notes, Non-Notes, Both}>Mode
 slider4:0<0,127,1>Note Min
 slider5:127<0,127,1>Note Max
@@ -46,8 +43,8 @@ slider4 = min(max(slider4 | 0, 0), 127);  // Remove fractions and clamp to legal
 slider5 = min(max(slider5 | 0, 0), 127);
 slider6 = min(max(slider6 | 0, -60), 60);
 
-inChannel = slider1;
-outChannel = slider2;
+inChannel = slider1 - 1; // 0-15 is specific channel, -1 is any.
+outChannel = slider2 - 1; //0-15 is specific channel, -1 is original.
 mode = slider3;
 noteMin = slider4;
 noteMax = slider5;
@@ -64,8 +61,9 @@ while
     channel = msg1 & $x0F;
       
     // Is it on our channel?
-    channel == inChannel ? 
+    (channel == inChannel || inChannel == -1) ? 
     (
+      msgOutChannel = (outChannel == -1 ? channel : outChannel);
       // Note events are always redirected
       (status == statNoteOn || status == statNoteOff) ?
       (
@@ -82,14 +80,14 @@ while
             note < 0 ? note = 0; note > 127 ? note = 127;
 
             // Modify MIDI message data
-            msg1 = status + outChannel;
+            msg1 = status + msgOutChannel;
             msg23 = (msg23 & $xFF00) | note;
           );
         );
       )
-      : mode & 2 ? // Redired non-note events if necessary
+      : mode & 2 ? // Redirecd non-note events if necessary
       (
-        msg1 = status + outChannel;
+        msg1 = status + msgOutChannel;
       );
     );
     
